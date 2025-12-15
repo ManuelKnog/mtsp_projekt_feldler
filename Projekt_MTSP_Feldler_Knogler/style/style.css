@@ -1,0 +1,12 @@
+.header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+}
+
+#button-login {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
