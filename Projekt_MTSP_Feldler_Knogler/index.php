@@ -1,5 +1,5 @@
 <?php
-$dbName = "mtsp_übung";
+$dbName = "mtsp_uebung";
 $conn = new mysqli("localhost", "root", "", $dbName);
 
 if ($conn->connect_error) {
@@ -14,7 +14,7 @@ if ($suche !== "") {
     $suche_esc = $conn->real_escape_string($suche);
     $sql .= " WHERE titel LIKE '%$suche_esc%' OR autor LIKE '%$suche_esc%'";
 }
-
+$conn->set_charset("utf8mb4");
 $ergebnis = $conn->query($sql);
 ?>
 
