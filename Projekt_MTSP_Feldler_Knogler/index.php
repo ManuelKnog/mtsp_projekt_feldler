@@ -1,5 +1,7 @@
 <?php
-$dbName = "mtsp_uebung";
+session_start();
+
+$dbName = "mtsp_übung";
 $conn = new mysqli("localhost", "root", "", $dbName);
 
 if ($conn->connect_error) {
@@ -14,7 +16,7 @@ if ($suche !== "") {
     $suche_esc = $conn->real_escape_string($suche);
     $sql .= " WHERE titel LIKE '%$suche_esc%' OR autor LIKE '%$suche_esc%'";
 }
-$conn->set_charset("utf8mb4");
+
 $ergebnis = $conn->query($sql);
 ?>
 
@@ -29,7 +31,14 @@ $ergebnis = $conn->query($sql);
 <body>
     <header class="header-bar">
         <h1>Bibliothek-Knogler</h1>
-        <a id="button-login" href="login.html">Anmelden</a>
+        <div class="header-actions">
+            <?php if (isset($_SESSION['bibliothekar_angemeldet']) && $_SESSION['bibliothekar_angemeldet'] === true): ?>
+                <a href="verwaltung.php">Verwaltung</a>
+                <a href="logout.php">Logout</a>
+            <?php else: ?>
+                <a href="login.php">Anmelden</a>
+            <?php endif; ?>
+        </div>
     </header>
 
     <main>
@@ -69,5 +78,4 @@ $ergebnis = $conn->query($sql);
 
 </body>
 </html>
-
 
