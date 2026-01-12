@@ -1,23 +1,29 @@
 <?php
 session_start();
-
-$dbName = "mtsp_übung";
-$conn = new mysqli("localhost", "root", "", $dbName);
-
+$conn = new mysqli("localhost", "root", "", "bibliothek_mtsp");
 if ($conn->connect_error) {
     die("Verbindung fehlgeschlagen: " . $conn->connect_error);
 }
 
-$suche = isset($_GET["suche"]) ? $_GET["suche"] : "";
+$suche = trim($_GET["suche"] ?? "");
+$kategorie = $_GET["kategorie"] ?? "";
+$verlag = $_GET["verlag"] ?? "";
 
-$sql = "SELECT buch_nr, isbn, titel, autor, verlag FROM buch";
-
+$sql = "SELECT buch_nr, isbn, titel, autor, verlag, beschreibung, kategorie FROM buch WHERE 1=1";
 if ($suche !== "") {
     $suche_esc = $conn->real_escape_string($suche);
-    $sql .= " WHERE titel LIKE '%$suche_esc%' OR autor LIKE '%$suche_esc%'";
+    $sql .= " AND (titel LIKE '%$suche_esc%' OR autor LIKE '%$suche_esc%' OR beschreibung LIKE '%$suche_esc%')";
 }
-
+if ($kategorie !== "") {
+    $sql .= " AND kategorie = '" . $conn->real_escape_string($kategorie) . "'";
+}
+if ($verlag !== "") {
+    $sql .= " AND verlag = '" . $conn->real_escape_string($verlag) . "'";
+}
+$sql .= " ORDER BY buch_nr ASC";
 $ergebnis = $conn->query($sql);
+$kategorien_result = $conn->query("SELECT DISTINCT kategorie FROM buch WHERE kategorie IS NOT NULL AND kategorie != '' ORDER BY kategorie");
+$verlage_result = $conn->query("SELECT DISTINCT verlag FROM buch WHERE verlag IS NOT NULL AND verlag != '' ORDER BY verlag");
 ?>
 
 <!DOCTYPE html>
@@ -26,56 +32,105 @@ $ergebnis = $conn->query($sql);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bibliothek – Bücher</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style/style.css">
 </head>
 <body>
-    <header class="header-bar">
-        <h1>Bibliothek-Knogler</h1>
-        <div class="header-actions">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.php">Bibliothek-Knogler</a>
+            <div class="navbar-nav ms-auto">
             <?php if (isset($_SESSION['bibliothekar_angemeldet']) && $_SESSION['bibliothekar_angemeldet'] === true): ?>
-                <a href="verwaltung.php">Verwaltung</a>
-                <a href="logout.php">Logout</a>
-            <?php else: ?>
-                <a href="login.php">Anmelden</a>
-            <?php endif; ?>
+                <a class="nav-link" href="verwaltung.php">Verwaltung</a>
+                <a class="nav-link" href="logout.php">Logout</a>
+                <?php else: ?>
+                    <a class="nav-link" href="login.php">Anmelden</a>
+                <?php endif; ?>
+            </div>
         </div>
-    </header>
+    </nav>
 
-    <main>
-        <h2>Büchersuche</h2>
-        <form method="get">
-            <label for="suche">Titel oder Autor</label>
-            <input type="text" id="suche" name="suche" value="<?php echo htmlspecialchars($suche); ?>">
-            <button type="submit">Suchen</button>
-        </form>
+    <main class="container mt-4">
+        <h2 class="mb-4">Büchersuche</h2>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="suche" class="form-label">Volltextsuche (Titel, Autor, Beschreibung)</label>
+                        <input type="text" class="form-control" id="suche" name="suche" value="<?php echo htmlspecialchars($suche); ?>" placeholder="Suchbegriff eingeben">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="kategorie" class="form-label">Kategorie</label>
+                        <select class="form-select" id="kategorie" name="kategorie">
+                            <option value="">Alle Kategorien</option>
+                            <?php if ($kategorien_result && $kategorien_result->num_rows > 0): ?>
+                                <?php while ($kat = $kategorien_result->fetch_assoc()): ?>
+                                    <option value="<?php echo htmlspecialchars($kat["kategorie"]); ?>" <?php echo $kategorie === $kat["kategorie"] ? "selected" : ""; ?>>
+                                        <?php echo htmlspecialchars($kat["kategorie"]); ?>
+                                    </option>
+                                <?php endwhile; ?>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="verlag" class="form-label">Verlag</label>
+                        <select class="form-select" id="verlag" name="verlag">
+                            <option value="">Alle Verlage</option>
+                            <?php if ($verlage_result && $verlage_result->num_rows > 0): ?>
+                                <?php while ($ver = $verlage_result->fetch_assoc()): ?>
+                                    <option value="<?php echo htmlspecialchars($ver["verlag"]); ?>" <?php echo $verlag === $ver["verlag"] ? "selected" : ""; ?>>
+                                        <?php echo htmlspecialchars($ver["verlag"]); ?>
+                                    </option>
+                                <?php endwhile; ?>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Suchen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
-        <h2>Alle Bücher</h2>
-        <table>
-        <tr>
-            <th>Nr</th>
-            <th>ISBN</th>
-            <th>Titel</th>
-            <th>Autor</th>
-            <th>Verlag</th>
-        </tr>
-        <?php if ($ergebnis && $ergebnis->num_rows > 0): ?>
-            <?php while ($zeile = $ergebnis->fetch_assoc()): ?>
-                <tr>
-                    <td><?php echo $zeile["buch_nr"]; ?></td>
-                    <td><?php echo htmlspecialchars($zeile["isbn"]); ?></td>
-                    <td><?php echo htmlspecialchars($zeile["titel"]); ?></td>
-                    <td><?php echo htmlspecialchars($zeile["autor"]); ?></td>
-                    <td><?php echo htmlspecialchars($zeile["verlag"]); ?></td>
-                </tr>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <tr>
-                <td colspan="5">Keine Bücher gefunden.</td>
-            </tr>
-        <?php endif; ?>
-        </table>
+        <h2 class="mb-3">Alle Bücher</h2>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Nr</th>
+                        <th>ISBN</th>
+                        <th>Titel</th>
+                        <th>Autor</th>
+                        <th>Verlag</th>
+                        <th>Kategorie</th>
+                        <th>Beschreibung</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if ($ergebnis && $ergebnis->num_rows > 0): ?>
+                        <?php while ($zeile = $ergebnis->fetch_assoc()): ?>
+                            <tr>
+                                <td><?php echo $zeile["buch_nr"]; ?></td>
+                                <td><?php echo htmlspecialchars($zeile["isbn"]); ?></td>
+                                <td><strong><?php echo htmlspecialchars($zeile["titel"]); ?></strong></td>
+                                <td><?php echo htmlspecialchars($zeile["autor"]); ?></td>
+                                <td><?php echo htmlspecialchars($zeile["verlag"]); ?></td>
+                                <td><?php echo htmlspecialchars($zeile["kategorie"] ?? "-"); ?></td>
+                                <td><?php echo htmlspecialchars(substr($zeile["beschreibung"] ?? "", 0, 100)) . (strlen($zeile["beschreibung"] ?? "") > 100 ? "..." : ""); ?></td>
+                            </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="7" class="text-center">Keine Bücher gefunden.</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 
