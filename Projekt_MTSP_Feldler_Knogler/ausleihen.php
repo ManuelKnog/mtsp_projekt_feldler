@@ -45,23 +45,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
             }
             $stmt->close();
         }
-    } else if ($action === "add_kunde") {
-        $vorname = trim($_POST["vorname"] ?? "");
-        $nachname = trim($_POST["nachname"] ?? "");
-        $email = trim($_POST["email"] ?? "");
-        $tel = trim($_POST["telefon"] ?? "");
-
-        if ($vorname === "" || $nachname === "") {
-            $fehler = "Bitte Vorname und Nachname eingeben.";
-        } else {
-            $stmt = $conn->prepare("INSERT INTO kunde (vorname, nachname, email, tel) VALUES (?, ?, ?, ?)");
-            if ($stmt && $stmt->bind_param("ssss", $vorname, $nachname, $email, $tel) && $stmt->execute()) {
-                $meldung = "Kunde wurde erfolgreich hinzugefügt.";
-            } else {
-                $fehler = "Fehler beim Hinzufügen: " . $conn->error;
-            }
-            $stmt->close();
-        }
     }
 }
 
@@ -84,53 +67,30 @@ if (!$tabellen_existieren) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ausleihen verwalten</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style/style.css">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="ausleihen.php">Ausleihen verwalten</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="verwaltung.php">Bücherverwaltung</a>
-                <a class="nav-link" href="index.php">Öffentliche Übersicht</a>
-                <a class="nav-link" href="logout.php">Logout</a>
-            </div>
+    <nav class="header-bar">
+        <h1><a href="ausleihen.php" style="text-decoration: none; color: inherit;">Ausleihen verwalten</a></h1>
+        <div class="header-actions">
+            <a href="verwaltung.php">Bücherverwaltung</a>
+            <a href="index.php">Öffentliche Übersicht</a>
+            <a href="logout.php">Logout</a>
         </div>
     </nav>
 
-    <main class="container mt-4">
-        <h2 class="mb-4">Ausleihen verwalten</h2>
+    <main>
+        <h2>Ausleihen verwalten</h2>
         
         <?php if (!empty($meldung)): ?>
-            <div class="alert alert-success alert-dismissible fade show"><?php echo htmlspecialchars($meldung); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+            <p style="color:green"><?php echo htmlspecialchars($meldung); ?></p>
         <?php endif; ?>
         <?php if (!empty($fehler)): ?>
-            <div class="alert alert-danger alert-dismissible fade show"><?php echo htmlspecialchars($fehler); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+            <p style="color:red"><?php echo htmlspecialchars($fehler); ?></p>
         <?php endif; ?>
 
-        <div class="row">
-            <div class="col-md-4">
-                <section>
-                    <h3>Neuen Kunden hinzufügen</h3>
-                    <form method="post" action="ausleihen.php">
-                        <input type="hidden" name="action" value="add_kunde">
-                        <label for="kunde_vorname">Vorname *</label>
-                        <input type="text" id="kunde_vorname" name="vorname" required>
-                        <br>
-                        <label for="kunde_nachname">Nachname *</label>
-                        <input type="text" id="kunde_nachname" name="nachname" required>
-                        <br>
-                        <label for="kunde_email">Email</label>
-                        <input type="email" id="kunde_email" name="email">
-                        <br>
-                        <label for="kunde_telefon">Telefon</label>
-                        <input type="text" id="kunde_telefon" name="telefon">
-                        <br>
-                        <button type="submit">Kunde hinzufügen</button>
-                    </form>
-                </section>
-
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 300px;">
                 <section>
                     <h3>Buch ausleihen</h3>
                     <form method="post" action="ausleihen.php">
@@ -166,7 +126,7 @@ if (!$tabellen_existieren) {
                 </section>
             </div>
 
-            <div class="col-md-8">
+            <div style="flex: 2; min-width: 400px;">
                 <section>
                     <h3>Alle Ausleihen</h3>
                     <table>
@@ -204,7 +164,6 @@ if (!$tabellen_existieren) {
         </div>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 

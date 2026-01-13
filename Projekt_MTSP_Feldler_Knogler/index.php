@@ -32,71 +32,58 @@ $verlage_result = $conn->query("SELECT DISTINCT verlag FROM buch WHERE verlag IS
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bibliothek – Bücher</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style/style.css">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="index.php">Bibliothek-Knogler</a>
-            <div class="navbar-nav ms-auto">
+    <nav class="header-bar">
+        <h1><a href="index.php" style="text-decoration: none; color: inherit;">Bibliothek-Knogler</a></h1>
+        <div class="header-actions">
             <?php if (isset($_SESSION['bibliothekar_angemeldet']) && $_SESSION['bibliothekar_angemeldet'] === true): ?>
-                <a class="nav-link" href="verwaltung.php">Verwaltung</a>
-                <a class="nav-link" href="logout.php">Logout</a>
-                <?php else: ?>
-                    <a class="nav-link" href="login.php">Anmelden</a>
-                <?php endif; ?>
-            </div>
+                <a href="verwaltung.php">Verwaltung</a>
+                <a href="logout.php">Logout</a>
+            <?php else: ?>
+                <a href="login.php">Anmelden</a>
+            <?php endif; ?>
         </div>
     </nav>
 
-    <main class="container mt-4">
-        <h2 class="mb-4">Büchersuche</h2>
+    <main>
+        <h2>Büchersuche</h2>
         
-        <div class="card mb-4">
-            <div class="card-body">
-                <form method="get" class="row g-3">
-                    <div class="col-md-4">
-                        <label for="suche" class="form-label">Volltextsuche (Titel, Autor, Beschreibung)</label>
-                        <input type="text" class="form-control" id="suche" name="suche" value="<?php echo htmlspecialchars($suche); ?>" placeholder="Suchbegriff eingeben">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="kategorie" class="form-label">Kategorie</label>
-                        <select class="form-select" id="kategorie" name="kategorie">
-                            <option value="">Alle Kategorien</option>
-                            <?php if ($kategorien_result && $kategorien_result->num_rows > 0): ?>
-                                <?php while ($kat = $kategorien_result->fetch_assoc()): ?>
-                                    <option value="<?php echo htmlspecialchars($kat["kategorie"]); ?>" <?php echo $kategorie === $kat["kategorie"] ? "selected" : ""; ?>>
-                                        <?php echo htmlspecialchars($kat["kategorie"]); ?>
-                                    </option>
-                                <?php endwhile; ?>
-                            <?php endif; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="verlag" class="form-label">Verlag</label>
-                        <select class="form-select" id="verlag" name="verlag">
-                            <option value="">Alle Verlage</option>
-                            <?php if ($verlage_result && $verlage_result->num_rows > 0): ?>
-                                <?php while ($ver = $verlage_result->fetch_assoc()): ?>
-                                    <option value="<?php echo htmlspecialchars($ver["verlag"]); ?>" <?php echo $verlag === $ver["verlag"] ? "selected" : ""; ?>>
-                                        <?php echo htmlspecialchars($ver["verlag"]); ?>
-                                    </option>
-                                <?php endwhile; ?>
-                            <?php endif; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">Suchen</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        <section>
+            <form method="get">
+                <label for="suche">Volltextsuche (Titel, Autor, Beschreibung)</label>
+                <input type="text" id="suche" name="suche" value="<?php echo htmlspecialchars($suche); ?>" placeholder="Suchbegriff eingeben">
+                <label for="kategorie">Kategorie</label>
+                <select id="kategorie" name="kategorie">
+                    <option value="">Alle Kategorien</option>
+                    <?php if ($kategorien_result && $kategorien_result->num_rows > 0): ?>
+                        <?php while ($kat = $kategorien_result->fetch_assoc()): ?>
+                            <option value="<?php echo htmlspecialchars($kat["kategorie"]); ?>" <?php echo $kategorie === $kat["kategorie"] ? "selected" : ""; ?>>
+                                <?php echo htmlspecialchars($kat["kategorie"]); ?>
+                            </option>
+                        <?php endwhile; ?>
+                    <?php endif; ?>
+                </select>
+                <label for="verlag">Verlag</label>
+                <select id="verlag" name="verlag">
+                    <option value="">Alle Verlage</option>
+                    <?php if ($verlage_result && $verlage_result->num_rows > 0): ?>
+                        <?php while ($ver = $verlage_result->fetch_assoc()): ?>
+                            <option value="<?php echo htmlspecialchars($ver["verlag"]); ?>" <?php echo $verlag === $ver["verlag"] ? "selected" : ""; ?>>
+                                <?php echo htmlspecialchars($ver["verlag"]); ?>
+                            </option>
+                        <?php endwhile; ?>
+                    <?php endif; ?>
+                </select>
+                <button type="submit">Suchen</button>
+            </form>
+        </section>
 
-        <h2 class="mb-3">Alle Bücher</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="table-dark">
+        <h2>Alle Bücher</h2>
+        <section>
+            <table>
+                <thead>
                     <tr>
                         <th>Nr</th>
                         <th>ISBN</th>
@@ -122,15 +109,14 @@ $verlage_result = $conn->query("SELECT DISTINCT verlag FROM buch WHERE verlag IS
                         <?php endwhile; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" class="text-center">Keine Bücher gefunden.</td>
+                            <td colspan="7" style="text-align: center;">Keine Bücher gefunden.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
-        </div>
+        </section>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 
