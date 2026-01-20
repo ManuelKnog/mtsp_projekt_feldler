@@ -1,6 +1,7 @@
 <?php
 session_start();
 
+// Datenbankverbindung
 $conn = new mysqli("localhost", "root", "", "bibliothek_mtsp");
 if ($conn->connect_error) {
     die("Verbindung fehlgeschlagen: " . $conn->connect_error);
@@ -12,16 +13,19 @@ $suche = trim($_GET["suche"] ?? "");
 $kategorie = $_GET["kategorie"] ?? "";
 $verlag = $_GET["verlag"] ?? "";
 
-// SQL-Query mit dynamischen Filtern
+// SQL-Query mit dynamischen Filtern (WHERE 1=1 ermöglicht einfaches Anhängen von AND-Bedingungen)
 $sql = "SELECT buch_nr, isbn, titel, autor, verlag, beschreibung, kategorie FROM buch WHERE 1=1";
 if ($suche !== "") {
-    $sql .= " AND (titel LIKE '%$suche%' OR autor LIKE '%$suche%' OR beschreibung LIKE '%$suche%')";
+    $suche_esc = $conn->real_escape_string($suche);
+    $sql .= " AND (titel LIKE '%$suche_esc%' OR autor LIKE '%$suche_esc%' OR beschreibung LIKE '%$suche_esc%')";
 }
 if ($kategorie !== "") {
-    $sql .= " AND kategorie = '$kategorie'";
+    $kategorie_esc = $conn->real_escape_string($kategorie);
+    $sql .= " AND kategorie = '$kategorie_esc'";
 }
 if ($verlag !== "") {
-    $sql .= " AND verlag = '$verlag'";
+    $verlag_esc = $conn->real_escape_string($verlag);
+    $sql .= " AND verlag = '$verlag_esc'";
 }
 $sql .= " ORDER BY buch_nr ASC";
 $ergebnis = $conn->query($sql);

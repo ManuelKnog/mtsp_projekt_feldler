@@ -7,6 +7,7 @@ if (!isset($_SESSION['bibliothekar_angemeldet']) || $_SESSION['bibliothekar_ange
     exit;
 }
 
+// Datenbankverbindung
 $conn = new mysqli("localhost", "root", "", "bibliothek_mtsp");
 if ($conn->connect_error) {
     die("Verbindung fehlgeschlagen: " . $conn->connect_error);
@@ -28,6 +29,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
         if ($kunden_nr <= 0 || $buch_nr <= 0) {
             $fehler = "Bitte alle Felder ausfüllen.";
         } else {
+            // Prepared Statement für neue Ausleihe
             $stmt = $conn->prepare("INSERT INTO ausleihen (kunden_nr, buch_nr, bibliothekar_nr, datum) VALUES (?, ?, ?, ?)");
             $datum = date("Y-m-d");
             $bibliothekar_nr = $_SESSION["bibliothekar_id"];
@@ -45,6 +47,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
         if ($ausleihen_nr <= 0) {
             $fehler = "Ungültige Ausleihe-ID.";
         } else {
+            // Prepared Statement für Rückgabe (Löschen der Ausleihe)
             $stmt = $conn->prepare("DELETE FROM ausleihen WHERE ausleihen_nr = ?");
             if ($stmt && $stmt->bind_param("i", $ausleihen_nr) && $stmt->execute()) {
                 $meldung = "Buch wurde erfolgreich zurückgegeben.";

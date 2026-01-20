@@ -7,6 +7,7 @@ if (isset($_SESSION['bibliothekar_angemeldet']) && $_SESSION['bibliothekar_angem
     exit;
 }
 
+// Datenbankverbindung
 $conn = new mysqli("localhost", "root", "", "bibliothek_mtsp");
 if ($conn->connect_error) {
     die("Verbindung fehlgeschlagen: " . $conn->connect_error);
@@ -21,11 +22,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $pass = $_POST["pass"] ?? "";
 
     if ($user !== "" && $pass !== "") {
+        // Prepared Statement für Login-Abfrage
         $stmt = $conn->prepare("SELECT bibliothekar_id, benutzername, passwort FROM bibliothekar WHERE benutzername = ?");
         if ($stmt && $stmt->bind_param("s", $user) && $stmt->execute()) {
             $row = $stmt->get_result()->fetch_assoc();
-            // Passwort-Verifizierung
+            // Passwort-Verifizierung mit password_verify()
             if ($row && password_verify($pass, $row["passwort"])) {
+                // Session-Variablen setzen bei erfolgreichem Login
                 $_SESSION["bibliothekar_angemeldet"] = true;
                 $_SESSION["bibliothekar_id"] = $row["bibliothekar_id"];
                 $stmt->close();

@@ -16,7 +16,7 @@ $conn->set_charset("utf8mb4");
 
 $meldung = "";
 
-// Formularverarbeitung
+// Formularverarbeitung für CRUD-Operationen
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
     $action = $_POST["submit_action"];
     
@@ -30,6 +30,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
         $anschaffungspreis = floatval($_POST["anschaffungspreis"] ?? 0);
         $kategorie = trim($_POST["kategorie"] ?? "");
         
+        // Prepared Statement für INSERT (Schutz vor SQL-Injection)
         $stmt = $conn->prepare("INSERT INTO buch (isbn, titel, autor, verlag, beschreibung, anschaffungspreis, kategorie) VALUES (?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("sssssds", $isbn, $titel, $autor, $verlag, $beschreibung, $anschaffungspreis, $kategorie);
         $stmt->execute();
@@ -47,6 +48,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
         $anschaffungspreis = floatval($_POST["anschaffungspreis"] ?? 0);
         $kategorie = trim($_POST["kategorie"] ?? "");
         
+        // Prepared Statement für UPDATE
         $stmt = $conn->prepare("UPDATE buch SET isbn = ?, titel = ?, autor = ?, verlag = ?, beschreibung = ?, anschaffungspreis = ?, kategorie = ? WHERE buch_nr = ?");
         $stmt->bind_param("sssssdsi", $isbn, $titel, $autor, $verlag, $beschreibung, $anschaffungspreis, $kategorie, $buch_nr);
         $stmt->execute();
@@ -67,9 +69,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
 // Suchfunktion
 $suche = trim($_GET["suche"] ?? "");
 
+// SQL-Query für Bücherliste
 $sql = "SELECT buch_nr, isbn, titel, autor, verlag, beschreibung, anschaffungspreis, kategorie FROM buch";
 if ($suche !== "") {
-    $sql .= " WHERE titel LIKE '%$suche%' OR autor LIKE '%$suche%' OR beschreibung LIKE '%$suche%'";
+    // Escaping für Sicherheit (verhindert SQL-Injection bei direkten Queries)
+    $suche_esc = $conn->real_escape_string($suche);
+    $sql .= " WHERE titel LIKE '%$suche_esc%' OR autor LIKE '%$suche_esc%' OR beschreibung LIKE '%$suche_esc%'";
 }
 $sql .= " ORDER BY buch_nr ASC";
 $ergebnis = $conn->query($sql);
