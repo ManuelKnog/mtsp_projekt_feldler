@@ -1,20 +1,26 @@
 <?php
 session_start();
+
+// Zugriff nur für angemeldete Bibliothekare
 if (!isset($_SESSION['bibliothekar_angemeldet']) || $_SESSION['bibliothekar_angemeldet'] !== true) {
     header("Location: login.php");
     exit;
 }
+
 $conn = new mysqli("localhost", "root", "", "bibliothek_mtsp");
 if ($conn->connect_error) {
     die("Verbindung fehlgeschlagen: " . $conn->connect_error);
 }
+$conn->set_charset("utf8mb4");
 
 $meldung = "";
 $fehler = "";
 
+// Formularverarbeitung
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
     $action = $_POST["action"];
 
+    // Buch ausleihen
     if ($action === "ausleihen") {
         $kunden_nr = intval($_POST["kunde_id"] ?? 0);
         $buch_nr = intval($_POST["buch_nr"] ?? 0);
@@ -32,7 +38,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
             }
             $stmt->close();
         }
-    } else if ($action === "rueckgabe") {
+    } 
+    // Buch zurückgeben
+    else if ($action === "rueckgabe") {
         $ausleihen_nr = intval($_POST["ausleihe_id"] ?? 0);
         if ($ausleihen_nr <= 0) {
             $fehler = "Ungültige Ausleihe-ID.";
@@ -48,6 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
     }
 }
 
+// Prüfung ob benötigte Tabellen existieren
 $check_ausleihen = $conn->query("SHOW TABLES LIKE 'ausleihen'");
 $check_kunde = $conn->query("SHOW TABLES LIKE 'kunde'");
 $tabellen_existieren = ($check_ausleihen && $check_ausleihen->num_rows > 0) && ($check_kunde && $check_kunde->num_rows > 0);
@@ -56,6 +65,7 @@ if (!$tabellen_existieren) {
     $fehler = "Die Datenbank-Tabellen wurden noch nicht erstellt.";
     $ausleihen = $kunden = false;
 } else {
+    // Alle Ausleihen mit JOIN zu Kunde und Buch
     $ausleihen = $conn->query("SELECT a.ausleihen_nr, a.datum, k.kunden_nr, k.vorname, k.nachname, b.buch_nr, b.titel, b.autor FROM ausleihen a LEFT JOIN kunde k ON a.kunden_nr = k.kunden_nr LEFT JOIN buch b ON a.buch_nr = b.buch_nr ORDER BY a.datum DESC");
     $kunden = $conn->query("SELECT kunden_nr, vorname, nachname FROM kunde ORDER BY nachname, vorname");
 }
@@ -145,7 +155,7 @@ if (!$tabellen_existieren) {
                                     <td><?php echo htmlspecialchars($aus["titel"]); ?></td>
                                     <td><?php echo date("d.m.Y", strtotime($aus["datum"])); ?></td>
                                     <td>
-                                        <form method="post" action="ausleihen.php" style="display:inline;" onsubmit="return confirm('Buch wirklich zurückgeben?');">
+                                        <form method="post" action="ausleihen.php" style="display:inline;">
                                             <input type="hidden" name="action" value="rueckgabe">
                                             <input type="hidden" name="ausleihe_id" value="<?php echo $aus["ausleihen_nr"]; ?>">
                                             <button type="submit">Zurückgeben</button>

@@ -1,27 +1,32 @@
 <?php
 session_start();
+
 $conn = new mysqli("localhost", "root", "", "bibliothek_mtsp");
 if ($conn->connect_error) {
     die("Verbindung fehlgeschlagen: " . $conn->connect_error);
 }
+$conn->set_charset("utf8mb4");
 
+// Suchparameter aus URL
 $suche = trim($_GET["suche"] ?? "");
 $kategorie = $_GET["kategorie"] ?? "";
 $verlag = $_GET["verlag"] ?? "";
 
+// SQL-Query mit dynamischen Filtern
 $sql = "SELECT buch_nr, isbn, titel, autor, verlag, beschreibung, kategorie FROM buch WHERE 1=1";
 if ($suche !== "") {
-    $suche_esc = $conn->real_escape_string($suche);
-    $sql .= " AND (titel LIKE '%$suche_esc%' OR autor LIKE '%$suche_esc%' OR beschreibung LIKE '%$suche_esc%')";
+    $sql .= " AND (titel LIKE '%$suche%' OR autor LIKE '%$suche%' OR beschreibung LIKE '%$suche%')";
 }
 if ($kategorie !== "") {
-    $sql .= " AND kategorie = '" . $conn->real_escape_string($kategorie) . "'";
+    $sql .= " AND kategorie = '$kategorie'";
 }
 if ($verlag !== "") {
-    $sql .= " AND verlag = '" . $conn->real_escape_string($verlag) . "'";
+    $sql .= " AND verlag = '$verlag'";
 }
 $sql .= " ORDER BY buch_nr ASC";
 $ergebnis = $conn->query($sql);
+
+// Kategorien und Verlage für Dropdown-Menüs
 $kategorien_result = $conn->query("SELECT DISTINCT kategorie FROM buch WHERE kategorie IS NOT NULL AND kategorie != '' ORDER BY kategorie");
 $verlage_result = $conn->query("SELECT DISTINCT verlag FROM buch WHERE verlag IS NOT NULL AND verlag != '' ORDER BY verlag");
 ?>

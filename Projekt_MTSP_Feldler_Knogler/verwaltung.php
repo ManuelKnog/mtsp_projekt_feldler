@@ -1,21 +1,26 @@
 <?php
 session_start();
 
+// Zugriff nur für angemeldete Bibliothekare
 if (!isset($_SESSION['bibliothekar_angemeldet']) || $_SESSION['bibliothekar_angemeldet'] !== true) {
     header("Location: login.php");
     exit;
 }
 
+// Datenbankverbindung
 $conn = new mysqli("localhost", "root", "", "bibliothek_mtsp");
 if ($conn->connect_error) {
     die("Verbindung fehlgeschlagen: " . $conn->connect_error);
 }
+$conn->set_charset("utf8mb4");
 
 $meldung = "";
 
+// Formularverarbeitung
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
     $action = $_POST["submit_action"];
     
+    // Neues Buch hinzufügen
     if ($action === "add") {
         $isbn = trim($_POST["isbn"] ?? "");
         $titel = trim($_POST["titel"] ?? "");
@@ -26,11 +31,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
         $kategorie = trim($_POST["kategorie"] ?? "");
         
         $stmt = $conn->prepare("INSERT INTO buch (isbn, titel, autor, verlag, beschreibung, anschaffungspreis, kategorie) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssdds", $isbn, $titel, $autor, $verlag, $beschreibung, $anschaffungspreis, $kategorie);
+        $stmt->bind_param("sssssds", $isbn, $titel, $autor, $verlag, $beschreibung, $anschaffungspreis, $kategorie);
         $stmt->execute();
         $meldung = "Buch wurde hinzugefügt.";
         $stmt->close();
     } 
+    // Buch aktualisieren
     else if ($action === "update") {
         $buch_nr = intval($_POST["buch_nr"] ?? 0);
         $isbn = trim($_POST["isbn"] ?? "");
@@ -42,11 +48,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
         $kategorie = trim($_POST["kategorie"] ?? "");
         
         $stmt = $conn->prepare("UPDATE buch SET isbn = ?, titel = ?, autor = ?, verlag = ?, beschreibung = ?, anschaffungspreis = ?, kategorie = ? WHERE buch_nr = ?");
-        $stmt->bind_param("ssssddsi", $isbn, $titel, $autor, $verlag, $beschreibung, $anschaffungspreis, $kategorie, $buch_nr);
+        $stmt->bind_param("sssssdsi", $isbn, $titel, $autor, $verlag, $beschreibung, $anschaffungspreis, $kategorie, $buch_nr);
         $stmt->execute();
         $meldung = "Buch wurde aktualisiert.";
         $stmt->close();
     }
+    // Buch löschen
     else if ($action === "delete") {
         $buch_nr = intval($_POST["buch_nr"] ?? 0);
         $stmt = $conn->prepare("DELETE FROM buch WHERE buch_nr = ?");
@@ -57,16 +64,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
     }
 }
 
+// Suchfunktion
 $suche = trim($_GET["suche"] ?? "");
 
 $sql = "SELECT buch_nr, isbn, titel, autor, verlag, beschreibung, anschaffungspreis, kategorie FROM buch";
 if ($suche !== "") {
-    $suche_esc = $conn->real_escape_string($suche);
-    $sql .= " WHERE titel LIKE '%$suche_esc%' OR autor LIKE '%$suche_esc%' OR beschreibung LIKE '%$suche_esc%'";
+    $sql .= " WHERE titel LIKE '%$suche%' OR autor LIKE '%$suche%' OR beschreibung LIKE '%$suche%'";
 }
 $sql .= " ORDER BY buch_nr ASC";
 $ergebnis = $conn->query($sql);
 
+// Verfügbare Kategorien
 $kategorien = ["Mechatronik", "Informationstechnik", "Allgemeinbildung", "Elektrotechnik", "Maschinenbau"];
 ?>
 
@@ -167,7 +175,7 @@ $kategorien = ["Mechatronik", "Informationstechnik", "Allgemeinbildung", "Elektr
                                     </td>
                                     <td style="white-space: nowrap;">
                                         <button type="submit" name="submit_action" value="update">Speichern</button>
-                                        <button type="submit" name="submit_action" value="delete" onclick="return confirm('Buch wirklich löschen?');">Löschen</button>
+                                        <button type="submit" name="submit_action" value="delete">Löschen</button>
                                     </td>
                                 </form>
                             </tr>
