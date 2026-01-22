@@ -1,38 +1,49 @@
 <?php
+// Session starten - speichert Informationen über den angemeldeten Benutzer
 session_start();
 
-// Zugriff nur für angemeldete Bibliothekare
+// Sicherheitsprüfung: Nur angemeldete Bibliothekare dürfen Ausleihen verwalten
+// Wenn nicht angemeldet, wird der Benutzer automatisch zur Login-Seite weitergeleitet
 if (!isset($_SESSION['bibliothekar_angemeldet']) || $_SESSION['bibliothekar_angemeldet'] !== true) {
     header("Location: login.php");
     exit;
 }
 
-// Datenbankverbindung
+// Verbindung zur MySQL-Datenbank herstellen
 $conn = new mysqli("localhost", "root", "", "bibliothek_mtsp");
 if ($conn->connect_error) {
     die("Verbindung fehlgeschlagen: " . $conn->connect_error);
 }
+// UTF-8 Zeichensatz setzen, damit Umlaute korrekt angezeigt werden
 $conn->set_charset("utf8mb4");
 
+// Variablen für Meldungen (Erfolg oder Fehler)
 $meldung = "";
 $fehler = "";
 
-// Formularverarbeitung
+// Prüfen ob ein Formular abgeschickt wurde (POST = Daten werden im Hintergrund gesendet)
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
     $action = $_POST["action"];
 
-    // Buch ausleihen
+    // Aktion: Buch an einen Kunden ausleihen
     if ($action === "ausleihen") {
+        // Kunden-ID und Buch-ID aus dem Formular auslesen
+        // intval() wandelt den Wert in eine Ganzzahl um (Sicherheit)
         $kunden_nr = intval($_POST["kunde_id"] ?? 0);
         $buch_nr = intval($_POST["buch_nr"] ?? 0);
 
+        // Validierung: Prüfen ob beide Felder ausgefüllt wurden
         if ($kunden_nr <= 0 || $buch_nr <= 0) {
             $fehler = "Bitte alle Felder ausfüllen.";
         } else {
-            // Prepared Statement für neue Ausleihe
+            // Prepared Statement: Neue Ausleihe in die Datenbank einfügen
+            // Die Fragezeichen (?) werden später durch die tatsächlichen Werte ersetzt
             $stmt = $conn->prepare("INSERT INTO ausleihen (kunden_nr, buch_nr, bibliothekar_nr, datum) VALUES (?, ?, ?, ?)");
+            // Aktuelles Datum im Format Jahr-Monat-Tag (z.B. 2024-01-15)
             $datum = date("Y-m-d");
+            // ID des angemeldeten Bibliothekars aus der Session holen
             $bibliothekar_nr = $_SESSION["bibliothekar_id"];
+            // Werte binden: "iiis" = 3 Integers (Zahlen), 1 String (Text für Datum)
             if ($stmt && $stmt->bind_param("iiis", $kunden_nr, $buch_nr, $bibliothekar_nr, $datum) && $stmt->execute()) {
                 $meldung = "Buch wurde erfolgreich ausgeliehen.";
             } else {
@@ -41,14 +52,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
             $stmt->close();
         }
     } 
-    // Buch zurückgeben
+    // Aktion: Buch zurückgeben (Ausleihe löschen)
     else if ($action === "rueckgabe") {
+        // Ausleihe-ID aus dem Formular auslesen (welche Ausleihe soll zurückgegeben werden?)
         $ausleihen_nr = intval($_POST["ausleihe_id"] ?? 0);
         if ($ausleihen_nr <= 0) {
             $fehler = "Ungültige Ausleihe-ID.";
         } else {
-            // Prepared Statement für Rückgabe (Löschen der Ausleihe)
+            // Prepared Statement: Ausleihe aus der Datenbank löschen
+            // Wenn eine Ausleihe gelöscht wird, gilt das Buch als zurückgegeben
             $stmt = $conn->prepare("DELETE FROM ausleihen WHERE ausleihen_nr = ?");
+            // "i" = Integer (Ganzzahl) für die Ausleihe-Nummer
             if ($stmt && $stmt->bind_param("i", $ausleihen_nr) && $stmt->execute()) {
                 $meldung = "Buch wurde erfolgreich zurückgegeben.";
             } else {
@@ -59,7 +73,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"])) {
     }
 }
 
-// Prüfung ob benötigte Tabellen existieren
+// Prüfung ob die benötigten Datenbank-Tabellen existieren
+// Dies verhindert Fehler, wenn die Datenbank noch nicht eingerichtet wurde
 $check_ausleihen = $conn->query("SHOW TABLES LIKE 'ausleihen'");
 $check_kunde = $conn->query("SHOW TABLES LIKE 'kunde'");
 $tabellen_existieren = ($check_ausleihen && $check_ausleihen->num_rows > 0) && ($check_kunde && $check_kunde->num_rows > 0);
@@ -68,8 +83,11 @@ if (!$tabellen_existieren) {
     $fehler = "Die Datenbank-Tabellen wurden noch nicht erstellt.";
     $ausleihen = $kunden = false;
 } else {
-    // Alle Ausleihen mit JOIN zu Kunde und Buch
+    // LEFT JOIN: Verbindet Daten aus mehreren Tabellen
+    // Auch wenn ein Kunde oder Buch gelöscht wurde, wird die Ausleihe noch angezeigt
+    // ORDER BY ... DESC: Sortiert nach Datum, neueste zuerst
     $ausleihen = $conn->query("SELECT a.ausleihen_nr, a.datum, k.kunden_nr, k.vorname, k.nachname, b.buch_nr, b.titel, b.autor FROM ausleihen a LEFT JOIN kunde k ON a.kunden_nr = k.kunden_nr LEFT JOIN buch b ON a.buch_nr = b.buch_nr ORDER BY a.datum DESC");
+    // Alle Kunden abrufen, sortiert nach Nachname und Vorname (für Dropdown-Menü)
     $kunden = $conn->query("SELECT kunden_nr, vorname, nachname FROM kunde ORDER BY nachname, vorname");
 }
 ?>

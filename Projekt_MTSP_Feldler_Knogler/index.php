@@ -1,22 +1,27 @@
 <?php
+// Session starten - speichert Informationen über den angemeldeten Benutzer (für Navigation)
 session_start();
 
-// Datenbankverbindung
+// Verbindung zur MySQL-Datenbank herstellen
 $conn = new mysqli("localhost", "root", "", "bibliothek_mtsp");
 if ($conn->connect_error) {
     die("Verbindung fehlgeschlagen: " . $conn->connect_error);
 }
+// UTF-8 Zeichensatz setzen, damit Umlaute korrekt angezeigt werden
 $conn->set_charset("utf8mb4");
 
-// Suchparameter aus URL
+// Suchparameter aus der URL auslesen (GET = Daten werden in der URL übergeben, z.B. ?suche=PHP)
 $suche = trim($_GET["suche"] ?? "");
 $kategorie = $_GET["kategorie"] ?? "";
 $verlag = $_GET["verlag"] ?? "";
 
-// SQL-Query mit dynamischen Filtern (WHERE 1=1 ermöglicht einfaches Anhängen von AND-Bedingungen)
+// SQL-Query aufbauen: WHERE 1=1 ist immer wahr, damit wir später einfach AND-Bedingungen anhängen können
+// Dies macht den Code einfacher, da wir nicht prüfen müssen ob schon eine WHERE-Bedingung existiert
 $sql = "SELECT buch_nr, isbn, titel, autor, verlag, beschreibung, kategorie FROM buch WHERE 1=1";
 if ($suche !== "") {
+    // Escaping: Wandelt gefährliche Zeichen um (z.B. Apostrophe) - verhindert SQL-Injection
     $suche_esc = $conn->real_escape_string($suche);
+    // LIKE '%text%' sucht nach Texten, die den Suchbegriff enthalten (Teilübereinstimmung)
     $sql .= " AND (titel LIKE '%$suche_esc%' OR autor LIKE '%$suche_esc%' OR beschreibung LIKE '%$suche_esc%')";
 }
 if ($kategorie !== "") {
@@ -27,10 +32,13 @@ if ($verlag !== "") {
     $verlag_esc = $conn->real_escape_string($verlag);
     $sql .= " AND verlag = '$verlag_esc'";
 }
+// Ergebnisse nach Buchnummer sortieren (aufsteigend)
 $sql .= " ORDER BY buch_nr ASC";
+// SQL-Befehl ausführen und Ergebnisse speichern
 $ergebnis = $conn->query($sql);
 
-// Kategorien und Verlage für Dropdown-Menüs
+// DISTINCT: Jede Kategorie/Verlag nur einmal anzeigen (keine Duplikate)
+// Diese Daten werden für die Dropdown-Menüs im Suchformular benötigt
 $kategorien_result = $conn->query("SELECT DISTINCT kategorie FROM buch WHERE kategorie IS NOT NULL AND kategorie != '' ORDER BY kategorie");
 $verlage_result = $conn->query("SELECT DISTINCT verlag FROM buch WHERE verlag IS NOT NULL AND verlag != '' ORDER BY verlag");
 ?>

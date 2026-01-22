@@ -1,44 +1,58 @@
 <?php
+// Session starten - speichert Informationen über den angemeldeten Benutzer
 session_start();
 
-// Zugriff nur für angemeldete Bibliothekare
+// Sicherheitsprüfung: Nur angemeldete Bibliothekare dürfen diese Seite sehen
+// Wenn nicht angemeldet, wird der Benutzer automatisch zur Login-Seite weitergeleitet
 if (!isset($_SESSION['bibliothekar_angemeldet']) || $_SESSION['bibliothekar_angemeldet'] !== true) {
     header("Location: login.php");
     exit;
 }
 
-// Datenbankverbindung
+// Verbindung zur MySQL-Datenbank herstellen
+// Parameter: Server (localhost), Benutzername (root), Passwort (leer), Datenbankname (bibliothek_mtsp)
 $conn = new mysqli("localhost", "root", "", "bibliothek_mtsp");
 if ($conn->connect_error) {
     die("Verbindung fehlgeschlagen: " . $conn->connect_error);
 }
+// UTF-8 Zeichensatz setzen, damit Umlaute (ä, ö, ü) korrekt gespeichert und angezeigt werden
 $conn->set_charset("utf8mb4");
 
+// Variable für Erfolgsmeldungen (wird später ausgegeben)
 $meldung = "";
 
-// Formularverarbeitung für CRUD-Operationen
+// Prüfen ob ein Formular abgeschickt wurde (POST = Daten werden im Hintergrund gesendet)
+// CRUD = Create (Erstellen), Read (Lesen), Update (Aktualisieren), Delete (Löschen)
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
     $action = $_POST["submit_action"];
     
-    // Neues Buch hinzufügen
+    // Aktion: Neues Buch in die Datenbank einfügen
     if ($action === "add") {
+        // Formulardaten auslesen und Leerzeichen am Anfang/Ende entfernen (trim)
         $isbn = trim($_POST["isbn"] ?? "");
         $titel = trim($_POST["titel"] ?? "");
         $autor = trim($_POST["autor"] ?? "");
         $verlag = trim($_POST["verlag"] ?? "");
         $beschreibung = trim($_POST["beschreibung"] ?? "");
+        // Preis in Dezimalzahl umwandeln (z.B. "19.99" wird zu 19.99)
         $anschaffungspreis = floatval($_POST["anschaffungspreis"] ?? 0);
         $kategorie = trim($_POST["kategorie"] ?? "");
         
-        // Prepared Statement für INSERT (Schutz vor SQL-Injection)
+        // Prepared Statement: SQL-Befehl vorbereiten mit Platzhaltern (?)
+        // Dies verhindert SQL-Injection (Angriffe durch bösartige Eingaben)
+        // Die Fragezeichen werden später durch die tatsächlichen Werte ersetzt
         $stmt = $conn->prepare("INSERT INTO buch (isbn, titel, autor, verlag, beschreibung, anschaffungspreis, kategorie) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        // Werte an die Platzhalter binden: "sssssds" = 5 Strings, 1 Decimal, 1 String
         $stmt->bind_param("sssssds", $isbn, $titel, $autor, $verlag, $beschreibung, $anschaffungspreis, $kategorie);
+        // SQL-Befehl ausführen
         $stmt->execute();
         $meldung = "Buch wurde hinzugefügt.";
         $stmt->close();
     } 
-    // Buch aktualisieren
+    // Aktion: Bestehendes Buch in der Datenbank aktualisieren
     else if ($action === "update") {
+        // Buchnummer auslesen (welches Buch soll geändert werden?)
+        // intval() wandelt den Wert in eine Ganzzahl um (Sicherheit)
         $buch_nr = intval($_POST["buch_nr"] ?? 0);
         $isbn = trim($_POST["isbn"] ?? "");
         $titel = trim($_POST["titel"] ?? "");
@@ -48,17 +62,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
         $anschaffungspreis = floatval($_POST["anschaffungspreis"] ?? 0);
         $kategorie = trim($_POST["kategorie"] ?? "");
         
-        // Prepared Statement für UPDATE
+        // UPDATE-Befehl: Ändert die Daten des Buches mit der angegebenen Buchnummer
         $stmt = $conn->prepare("UPDATE buch SET isbn = ?, titel = ?, autor = ?, verlag = ?, beschreibung = ?, anschaffungspreis = ?, kategorie = ? WHERE buch_nr = ?");
+        // "sssssdsi" = 5 Strings, 1 Decimal, 1 String, 1 Integer (für buch_nr)
         $stmt->bind_param("sssssdsi", $isbn, $titel, $autor, $verlag, $beschreibung, $anschaffungspreis, $kategorie, $buch_nr);
         $stmt->execute();
         $meldung = "Buch wurde aktualisiert.";
         $stmt->close();
     }
-    // Buch löschen
+    // Aktion: Buch aus der Datenbank löschen
     else if ($action === "delete") {
         $buch_nr = intval($_POST["buch_nr"] ?? 0);
+        // DELETE-Befehl: Löscht das Buch mit der angegebenen Buchnummer
         $stmt = $conn->prepare("DELETE FROM buch WHERE buch_nr = ?");
+        // "i" = Integer (Ganzzahl) für die Buchnummer
         $stmt->bind_param("i", $buch_nr);
         $stmt->execute();
         $meldung = "Buch wurde gelöscht.";
@@ -66,20 +83,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["submit_action"])) {
     }
 }
 
-// Suchfunktion
+// Suchfunktion: Suchbegriff aus der URL auslesen (GET = Daten werden in der URL übergeben)
 $suche = trim($_GET["suche"] ?? "");
 
-// SQL-Query für Bücherliste
+// SQL-Query: Alle Bücher aus der Datenbank abrufen
 $sql = "SELECT buch_nr, isbn, titel, autor, verlag, beschreibung, anschaffungspreis, kategorie FROM buch";
 if ($suche !== "") {
-    // Escaping für Sicherheit (verhindert SQL-Injection bei direkten Queries)
+    // real_escape_string: Wandelt gefährliche Zeichen um (z.B. Apostrophe in "O'Reilly")
+    // Dies verhindert SQL-Injection-Angriffe bei direkten SQL-Queries
     $suche_esc = $conn->real_escape_string($suche);
+    // LIKE '%text%' bedeutet: Suche nach Texten, die den Suchbegriff enthalten
     $sql .= " WHERE titel LIKE '%$suche_esc%' OR autor LIKE '%$suche_esc%' OR beschreibung LIKE '%$suche_esc%'";
 }
+// Ergebnisse nach Buchnummer sortieren (aufsteigend: 1, 2, 3, ...)
 $sql .= " ORDER BY buch_nr ASC";
+// SQL-Befehl ausführen und Ergebnisse speichern
 $ergebnis = $conn->query($sql);
 
-// Verfügbare Kategorien
+// Liste der verfügbaren Kategorien für das Dropdown-Menü
 $kategorien = ["Mechatronik", "Informationstechnik", "Allgemeinbildung", "Elektrotechnik", "Maschinenbau"];
 ?>
 
